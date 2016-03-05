@@ -1,7 +1,6 @@
 package windowmanager
 
 import (
-	"fmt"
 	"goowm/gwindow"
 
 	"github.com/BurntSushi/xgb/xproto"
@@ -38,26 +37,13 @@ func New(display string) (*WindowManager, error) {
 
 	mousebind.Initialize(x)
 
-	xevent.MapRequestFun(
-		func(x *xgbutil.XUtil, e xevent.MapRequestEvent) {
-			x.Grab()
-			defer x.Ungrab()
+	xevent.MapRequestFun(onMapRequest).Connect(x, x.RootWin())
+	xevent.ConfigureRequestFun(onConfigureRequest).Connect(x, x.RootWin())
 
-			win := gwindow.New(x, e.Window)
-			win.Map()
-		}).Connect(x, x.RootWin())
-
-	xevent.ConfigureRequestFun(
-		func(x *xgbutil.XUtil, ev xevent.ConfigureRequestEvent) {
-			xwindow.New(x, ev.Window).Configure(int(ev.ValueMask),
-				int(ev.X), int(ev.Y), int(ev.Width), int(ev.Height),
-				ev.Sibling, ev.StackMode)
-		}).Connect(x, x.RootWin())
-
-	xevent.FocusInFun(
-		func(x *xgbutil.XUtil, e xevent.FocusInEvent) {
-			fmt.Println("FocusInEvent")
-		}).Connect(x, x.RootWin())
+	// xevent.FocusInFun(
+	// 	func(x *xgbutil.XUtil, e xevent.FocusInEvent) {
+	// 		fmt.Println("FocusInEvent")
+	// 	}).Connect(x, x.RootWin())
 
 	mousebind.ButtonPressFun(
 		func(x *xgbutil.XUtil, e xevent.ButtonPressEvent) {
@@ -74,4 +60,39 @@ func New(display string) (*WindowManager, error) {
 
 func (wm *WindowManager) Run() {
 	xevent.Main(wm.X)
+}
+
+func onMapRequest(x *xgbutil.XUtil, e xevent.MapRequestEvent) {
+	x.Grab()
+	defer x.Ungrab()
+
+	cw := gwindow.New(x, e.Window)
+	cg, err := cw.Geometry()
+	if err != nil {
+		panic(err)
+	}
+
+	pw, err := xwindow.Generate(x)
+	if err != nil {
+		panic(err)
+	}
+
+	err = pw.CreateChecked(x.RootWin(), cg.X(), cg.Y(),
+		cg.Width()+12, cg.Height()+12, xproto.CwBackPixel, 0x66ff33)
+	if err != nil {
+		panic(err)
+	}
+
+	_ = xproto.ReparentWindowChecked(x.Conn(), cw.Id, pw.Id, 5, 5)
+	if err != nil {
+		panic(err)
+	}
+
+	cw.Map()
+	pw.Map()
+}
+
+func onConfigureRequest(x *xgbutil.XUtil, ev xevent.ConfigureRequestEvent) {
+	xwindow.New(x, ev.Window).Configure(int(ev.ValueMask), int(ev.X), int(ev.Y),
+		int(ev.Width), int(ev.Height), ev.Sibling, ev.StackMode)
 }

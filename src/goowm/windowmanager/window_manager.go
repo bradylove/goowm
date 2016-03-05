@@ -1,6 +1,7 @@
 package windowmanager
 
 import (
+	"goowm/config"
 	"goowm/gwindow"
 
 	"github.com/BurntSushi/xgb/xproto"
@@ -13,11 +14,12 @@ import (
 type WindowManager struct {
 	X    *xgbutil.XUtil
 	Root *xwindow.Window
+	conf *config.Config
 }
 
 // New sets up a and returns a new *WindowManager
-func New(display string) (*WindowManager, error) {
-	x, err := xgbutil.NewConnDisplay(display)
+func New(conf *config.Config) (*WindowManager, error) {
+	x, err := xgbutil.NewConnDisplay(conf.Display)
 	if err != nil {
 		return nil, err
 	}

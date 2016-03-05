@@ -1,18 +1,19 @@
 package main
 
 import (
+	"fmt"
+	"goowm/config"
 	"goowm/windowmanager"
 	"log"
-	"os"
 )
 
 func main() {
-	d := os.Getenv("DISPLAY")
-	if d == "" {
-		d = ":0"
+	conf, err := config.Load("config", "$HOME/.config/goowm")
+	if err != nil {
+		panic(fmt.Errorf("Error loading config: %s", err))
 	}
 
-	wm, err := windowmanager.New(d)
+	wm, err := windowmanager.New(conf)
 	if err != nil {
 		panic(err)
 	}

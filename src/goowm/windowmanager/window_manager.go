@@ -1,6 +1,7 @@
 package windowmanager
 
 import (
+	"fmt"
 	"goowm/config"
 	"goowm/gwindow"
 	"os"
@@ -51,6 +52,11 @@ func New(conf *config.Config) (*WindowManager, error) {
 		panic(err)
 	}
 
+	err = keybind.KeyPressFun(onDestroyWindow).Connect(x, x.RootWin(), "Mod4-w", true)
+	if err != nil {
+		panic(err)
+	}
+
 	mousebind.ButtonPressFun(
 		func(x *xgbutil.XUtil, e xevent.ButtonPressEvent) {
 			if e.Child != 0 {
@@ -66,6 +72,14 @@ func New(conf *config.Config) (*WindowManager, error) {
 
 func (wm *WindowManager) Run() {
 	xevent.Main(wm.X)
+}
+
+func onDestroyWindow(x *xgbutil.XUtil, e xevent.KeyPressEvent) {
+	fmt.Println(e)
+
+	if e.Child != x.RootWin() {
+		gwindow.New(x, e.Child).Destroy()
+	}
 }
 
 func onShowModeLine(x *xgbutil.XUtil, e xevent.KeyPressEvent) {
@@ -110,6 +124,8 @@ func onMapRequest(x *xgbutil.XUtil, e xevent.MapRequestEvent) {
 
 	cw.Map()
 	pw.Map()
+
+	cw.Focus()
 }
 
 func onConfigureRequest(x *xgbutil.XUtil, ev xevent.ConfigureRequestEvent) {

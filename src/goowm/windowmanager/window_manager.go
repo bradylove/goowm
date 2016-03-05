@@ -3,9 +3,12 @@ package windowmanager
 import (
 	"goowm/config"
 	"goowm/gwindow"
+	"os"
+	"os/exec"
 
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/BurntSushi/xgbutil"
+	"github.com/BurntSushi/xgbutil/keybind"
 	"github.com/BurntSushi/xgbutil/mousebind"
 	"github.com/BurntSushi/xgbutil/xevent"
 	"github.com/BurntSushi/xgbutil/xwindow"
@@ -38,14 +41,15 @@ func New(conf *config.Config) (*WindowManager, error) {
 	}
 
 	mousebind.Initialize(x)
+	keybind.Initialize(x)
 
 	xevent.MapRequestFun(onMapRequest).Connect(x, x.RootWin())
 	xevent.ConfigureRequestFun(onConfigureRequest).Connect(x, x.RootWin())
 
-	// xevent.FocusInFun(
-	// 	func(x *xgbutil.XUtil, e xevent.FocusInEvent) {
-	// 		fmt.Println("FocusInEvent")
-	// 	}).Connect(x, x.RootWin())
+	err = keybind.KeyPressFun(onShowModeLine).Connect(x, x.RootWin(), "Mod4-x", true)
+	if err != nil {
+		panic(err)
+	}
 
 	mousebind.ButtonPressFun(
 		func(x *xgbutil.XUtil, e xevent.ButtonPressEvent) {
@@ -62,6 +66,20 @@ func New(conf *config.Config) (*WindowManager, error) {
 
 func (wm *WindowManager) Run() {
 	xevent.Main(wm.X)
+}
+
+func onShowModeLine(x *xgbutil.XUtil, e xevent.KeyPressEvent) {
+	cmd := exec.Command("dmenu_run", "-b")
+
+	env := os.Environ()
+	env = append(env, "DISPLAY=:1")
+
+	cmd.Env = env
+
+	err := cmd.Run()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func onMapRequest(x *xgbutil.XUtil, e xevent.MapRequestEvent) {

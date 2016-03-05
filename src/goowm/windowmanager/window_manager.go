@@ -1,6 +1,7 @@
 package windowmanager
 
 import (
+	"fmt"
 	"goowm/gwindow"
 
 	"github.com/BurntSushi/xgb/xproto"
@@ -27,7 +28,9 @@ func New(display string) (*WindowManager, error) {
 		xproto.EventMaskFocusChange |
 		xproto.EventMaskButtonPress |
 		xproto.EventMaskButtonRelease |
-		xproto.EventMaskStructureNotify
+		xproto.EventMaskStructureNotify |
+		xproto.EventMaskSubstructureRedirect |
+		xproto.EventMaskSubstructureRedirect
 
 	if err := root.Listen(evMasks); err != nil {
 		panic(err)
@@ -37,29 +40,24 @@ func New(display string) (*WindowManager, error) {
 
 	xevent.MapRequestFun(
 		func(x *xgbutil.XUtil, e xevent.MapRequestEvent) {
+			x.Grab()
+			defer x.Ungrab()
+
 			win := gwindow.New(x, e.Window)
-			err := win.Listen(xproto.EventMaskEnterWindow | xproto.EventMaskPropertyChange)
-			if err != nil {
-				panic(err)
-			}
+			win.Map()
 		}).Connect(x, x.RootWin())
 
-	// xevent.ConfigureRequestFun(
-	// 	func(x *xgbutil.XUtil, e xevent.ConfigureRequestEvent) {
-	// 		fmt.Println("ConfigureRequest")
-	// 	}).Connect(x, x.RootWin())
+	xevent.ConfigureRequestFun(
+		func(x *xgbutil.XUtil, ev xevent.ConfigureRequestEvent) {
+			xwindow.New(x, ev.Window).Configure(int(ev.ValueMask),
+				int(ev.X), int(ev.Y), int(ev.Width), int(ev.Height),
+				ev.Sibling, ev.StackMode)
+		}).Connect(x, x.RootWin())
 
-	// xevent.FocusInFun(
-	// 	func(x *xgbutil.XUtil, e xevent.FocusInEvent) {
-	// 		fmt.Println("ConfigureRequest")
-	// 	}).Connect(x, x.RootWin())
-
-	// err = mousebind.ButtonPressFun(
-	// 	func(x *xgbutil.XUtil, e xevent.ButtonPressEvent) {
-	// 		if e.Child != 0 {
-	// 			gwindow.New(x, e.Child).Maximize()
-	// 		}
-	// 	}).Connect(x, x.RootWin(), "Mod4-1", false, true)
+	xevent.FocusInFun(
+		func(x *xgbutil.XUtil, e xevent.FocusInEvent) {
+			fmt.Println("FocusInEvent")
+		}).Connect(x, x.RootWin())
 
 	mousebind.ButtonPressFun(
 		func(x *xgbutil.XUtil, e xevent.ButtonPressEvent) {

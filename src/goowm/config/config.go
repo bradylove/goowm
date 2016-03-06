@@ -6,7 +6,9 @@ import (
 )
 
 type Config struct {
-	Display          string
+	Display string
+
+	ThemeBorderColor int
 	ThemeBorderWidth int
 }
 
@@ -34,6 +36,7 @@ func (c *Config) reload() {
 	c.Display = viper.GetString("display")
 
 	// Theme related settings
+	c.ThemeBorderColor = ParseHexColor(viper.GetString("theme.border_color"))
 	c.ThemeBorderWidth = viper.GetInt("theme.border_width")
 }
 

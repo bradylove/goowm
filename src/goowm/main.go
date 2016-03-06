@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	conf, err := config.Load("config", "$HOME/.config/goowm")
+	conf, err := config.Load("config", "$HOME/.config/goowm", ".")
 	if err != nil {
 		panic(fmt.Errorf("Error loading config: %s", err))
 	}

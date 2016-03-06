@@ -1,14 +1,15 @@
 display=":1"
 
 [key-bindings]
-close-window = "Mod4-w"
-exec-launcher = "Mod4-r"
-next-workspace = "Mod4-n"
-previous-workspace = "Mod4-p"
+close_window = "Mod4-w"
+exec_launcher = "Mod4-r"
+next_workspace = "Mod4-n"
+previous_workspace = "Mod4-p"
 
 [workspace.Main]
 
 [workspace.Chat]
 
 [theme]
-border-width = 5
+border_width = 5
+border_color = "#990000"

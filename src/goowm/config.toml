@@ -6,9 +6,14 @@ exec_launcher = "Mod4-r"
 next_workspace = "Mod4-n"
 previous_workspace = "Mod4-p"
 
-[workspace.Main]
+[[workspace]]
+name = "Main"
 
-[workspace.Chat]
+[[workspace]]
+name = "Chat"
+
+[[workspace]]
+name = "Media"
 
 [theme]
 border_width = 5

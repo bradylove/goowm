@@ -9,16 +9,18 @@ import (
 
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/BurntSushi/xgbutil"
+	"github.com/BurntSushi/xgbutil/ewmh"
 	"github.com/BurntSushi/xgbutil/keybind"
-	"github.com/BurntSushi/xgbutil/mousebind"
 	"github.com/BurntSushi/xgbutil/xevent"
 	"github.com/BurntSushi/xgbutil/xwindow"
 )
 
 type WindowManager struct {
-	X    *xgbutil.XUtil
-	Root *xwindow.Window
-	conf *config.Config
+	X                    *xgbutil.XUtil
+	Root                 *xwindow.Window
+	conf                 *config.Config
+	Workspaces           []*Workspace
+	ActiveWorkspaceIndex int
 }
 
 // New sets up a and returns a new *WindowManager
@@ -28,7 +30,17 @@ func New(conf *config.Config) (*WindowManager, error) {
 		return nil, err
 	}
 
+	wm := &WindowManager{X: x}
+
+	for _, wc := range conf.Workspaces {
+		wm.Workspaces = append(wm.Workspaces, NewWorkspace(x, wc))
+	}
+
+	fmt.Println(len(wm.Workspaces))
+	wm.ActivateWorkspace(0)
+
 	root := xwindow.New(x, x.RootWin())
+
 	evMasks := xproto.EventMaskPropertyChange |
 		xproto.EventMaskFocusChange |
 		xproto.EventMaskButtonPress |
@@ -41,45 +53,70 @@ func New(conf *config.Config) (*WindowManager, error) {
 		panic(err)
 	}
 
-	mousebind.Initialize(x)
 	keybind.Initialize(x)
 
-	xevent.MapRequestFun(onMapRequest).Connect(x, x.RootWin())
-	xevent.ConfigureRequestFun(onConfigureRequest).Connect(x, x.RootWin())
-
-	err = keybind.KeyPressFun(onShowModeLine).Connect(x, x.RootWin(), "Mod4-x", true)
+	xevent.MapRequestFun(wm.onMapRequest).Connect(x, x.RootWin())
+	err = keybind.KeyPressFun(wm.onActivateNextWorkspace).Connect(x, x.RootWin(),
+		conf.KeyBindingNextWorkspace, true)
 	if err != nil {
 		panic(err)
 	}
 
-	err = keybind.KeyPressFun(onDestroyWindow).Connect(x, x.RootWin(), "Mod4-w", true)
+	err = keybind.KeyPressFun(wm.onActivatePreviousWorkspace).Connect(x, x.RootWin(),
+		conf.KeyBindingPreviousWorkspace, true)
 	if err != nil {
 		panic(err)
 	}
 
-	mousebind.ButtonPressFun(
-		func(x *xgbutil.XUtil, e xevent.ButtonPressEvent) {
-			if e.Child != 0 {
-				gwindow.New(x, e.Child).Maximize()
-			}
-		}).Connect(x, x.RootWin(), "Mod4-1", false, true)
+	err = keybind.KeyPressFun(onShowModeLine).Connect(x, x.RootWin(), "Mod4-e", true)
+	if err != nil {
+		panic(err)
+	}
 
-	return &WindowManager{
-		X:    x,
-		Root: root,
-	}, nil
+	return wm, nil
+}
+
+func (wm *WindowManager) ActiveWorkspace() *Workspace {
+	return wm.Workspaces[wm.ActiveWorkspaceIndex]
+}
+
+// ActivateWorkspace will deactivate the current active workspace if there is one
+// then it will activate the workspace with the given index.
+func (wm *WindowManager) ActivateWorkspace(index int) {
+	wm.Workspaces[wm.ActiveWorkspaceIndex].Unmap()
+	wm.Workspaces[index].Map()
+	wm.ActiveWorkspaceIndex = index
+}
+
+func (wm *WindowManager) ActivateNextWorkspace() {
+	var index int
+	if wm.ActiveWorkspaceIndex != len(wm.Workspaces)-1 {
+		index = wm.ActiveWorkspaceIndex + 1
+	}
+
+	wm.ActivateWorkspace(index)
+}
+
+func (wm *WindowManager) ActivatePreviousWorkspace() {
+	index := wm.ActiveWorkspaceIndex - 1
+
+	if index == -1 {
+		index = len(wm.Workspaces) - 1
+	}
+
+	wm.ActivateWorkspace(index)
+}
+
+func (wm *WindowManager) onActivateNextWorkspace(x *xgbutil.XUtil, e xevent.KeyPressEvent) {
+	wm.ActivateNextWorkspace()
+}
+
+func (wm *WindowManager) onActivatePreviousWorkspace(x *xgbutil.XUtil, e xevent.KeyPressEvent) {
+	wm.ActivatePreviousWorkspace()
 }
 
 func (wm *WindowManager) Run() {
 	xevent.Main(wm.X)
-}
-
-func onDestroyWindow(x *xgbutil.XUtil, e xevent.KeyPressEvent) {
-	fmt.Println(e)
-
-	if e.Child != x.RootWin() {
-		gwindow.New(x, e.Child).Destroy()
-	}
 }
 
 func onShowModeLine(x *xgbutil.XUtil, e xevent.KeyPressEvent) {
@@ -96,7 +133,7 @@ func onShowModeLine(x *xgbutil.XUtil, e xevent.KeyPressEvent) {
 	}
 }
 
-func onMapRequest(x *xgbutil.XUtil, e xevent.MapRequestEvent) {
+func (wm *WindowManager) onMapRequest(x *xgbutil.XUtil, e xevent.MapRequestEvent) {
 	x.Grab()
 	defer x.Ungrab()
 
@@ -111,24 +148,19 @@ func onMapRequest(x *xgbutil.XUtil, e xevent.MapRequestEvent) {
 		panic(err)
 	}
 
-	err = pw.CreateChecked(x.RootWin(), cg.X(), cg.Y(),
-		cg.Width()+12, cg.Height()+12, xproto.CwBackPixel, 0x66ff33)
+	err = pw.CreateChecked(wm.ActiveWorkspace().WindowId(), cg.X(), cg.Y(),
+		cg.Width()+12, cg.Height()+12, xproto.CwBackPixel, 0x000000)
 	if err != nil {
 		panic(err)
 	}
 
-	_ = xproto.ReparentWindowChecked(x.Conn(), cw.Id, pw.Id, 5, 5)
+	err = xproto.ReparentWindowChecked(x.Conn(), cw.Id, pw.Id, 5, 5).Check()
 	if err != nil {
 		panic(err)
 	}
 
-	cw.Map()
 	pw.Map()
+	cw.Map()
 
-	cw.Focus()
-}
-
-func onConfigureRequest(x *xgbutil.XUtil, ev xevent.ConfigureRequestEvent) {
-	xwindow.New(x, ev.Window).Configure(int(ev.ValueMask), int(ev.X), int(ev.Y),
-		int(ev.Width), int(ev.Height), ev.Sibling, ev.StackMode)
+	ewmh.ActiveWindowSet(x, cw.Id)
 }

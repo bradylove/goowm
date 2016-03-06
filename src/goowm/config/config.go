@@ -8,8 +8,18 @@ import (
 type Config struct {
 	Display string
 
+	Workspaces []*WorkspaceConfig
+
+	KeyBindingNextWorkspace     string
+	KeyBindingPreviousWorkspace string
+	KeyBindingExecLauncher      string
+
 	ThemeBorderColor int
 	ThemeBorderWidth int
+}
+
+type WorkspaceConfig struct {
+	Name string
 }
 
 func Load(name string, paths ...string) (*Config, error) {
@@ -34,6 +44,16 @@ func Load(name string, paths ...string) (*Config, error) {
 func (c *Config) reload() {
 	// Base Settings
 	c.Display = viper.GetString("display")
+
+	// KeyBindings
+	c.KeyBindingExecLauncher = viper.GetString("key-bindings.exec_launcher")
+	c.KeyBindingNextWorkspace = viper.GetString("key-bindings.next_workspace")
+	c.KeyBindingPreviousWorkspace = viper.GetString("key-bindings.previous_workspace")
+
+	// Workspaces
+	for _, w := range viper.Get("workspace").([]map[string]interface{}) {
+		c.Workspaces = append(c.Workspaces, &WorkspaceConfig{Name: w["name"].(string)})
+	}
 
 	// Theme related settings
 	c.ThemeBorderColor = ParseHexColor(viper.GetString("theme.border_color"))

@@ -15,6 +15,7 @@ func Extents(text string, font *truetype.Font, size float64) (int, int) {
 	return xgraphics.Extents(font, size, text)
 }
 
+// Redo this using cairo
 func Text(x *xgbutil.XUtil, parentId xproto.Window, text string, font *truetype.Font,
 	fontSize float64, xPos, yPos int) error {
 

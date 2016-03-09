@@ -39,7 +39,6 @@ func NewWorkspace(x *xgbutil.XUtil, conf *config.WorkspaceConfig) *Workspace {
 	}
 
 	workspace := Workspace{window: ws, name: conf.Name}
-	workspace.renderName(x)
 
 	return &workspace
 }
@@ -54,27 +53,4 @@ func (ws *Workspace) Activate() {
 
 func (ws *Workspace) WindowId() xproto.Window {
 	return ws.window.Id
-}
-
-func (ws *Workspace) renderName(x *xgbutil.XUtil) error {
-	size := 28.0
-
-	fd, err := ioutil.ReadFile("/usr/share/fonts/TTF/SourceCodePro-Medium.ttf")
-	if err != nil {
-		panic(err)
-	}
-
-	font, err := truetype.Parse(fd)
-	if err != nil {
-		panic(err)
-	}
-
-	w, h := render.Extents(ws.name, font, size)
-	wg, err := ws.window.Geometry()
-	if err != nil {
-		return err
-	}
-
-	render.Text(x, ws.WindowId(), ws.name, font, size, wg.Width()-w-5, wg.Height()-h-5)
-	return nil
 }

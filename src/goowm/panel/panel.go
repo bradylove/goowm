@@ -22,7 +22,7 @@ type Panel struct {
 	conf   *config.Config
 }
 
-func New(x *xgbutil.XUtil) (*Panel, error) {
+func New(x *xgbutil.XUtil, names []string) (*Panel, error) {
 	log.Println("Creating new panel")
 
 	rg := xwindow.RootGeometry(x)
@@ -38,6 +38,12 @@ func New(x *xgbutil.XUtil) (*Panel, error) {
 
 	runClock(x, win)
 
+	var xPos, yPos int
+	for _, n := range names {
+		width := renderWorkspace(x, win, n, xPos, yPos)
+		xPos += width
+	}
+
 	return &Panel{x: x, window: win}, nil
 }
 
@@ -45,8 +51,41 @@ func (p *Panel) Run() {
 	p.window.Map()
 }
 
+func renderWorkspace(x *xgbutil.XUtil, p *xwindow.Window, n string, xPos, yPos int) int {
+	buf, err := renderText(n)
+	if err != nil {
+		panic(err)
+	}
+
+	// render.Text(x, p.Id, currentTime, font, size, wg.Width()-w-3, 0)
+	img, err := xgraphics.NewBytes(x, buf.Bytes())
+	if err != nil {
+		panic(err)
+	}
+
+	win, err := xwindow.Generate(x)
+	if err != nil {
+		panic(err)
+	}
+
+	err = win.CreateChecked(p.Id, 0, 0, 1, 1, xproto.CwBackPixel, 0xffffff)
+	if err != nil {
+		panic(err)
+	}
+
+	win.MoveResize(xPos, 0, 60, 30)
+
+	img.XSurfaceSet(win.Id)
+	img.XDraw()
+	img.XPaint(win.Id)
+	img.Destroy()
+
+	win.Map()
+	return 60
+}
+
 func runClock(x *xgbutil.XUtil, p *xwindow.Window) {
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(1 * time.Second)
 
 	drawClock(x, p)
 
@@ -95,7 +134,7 @@ func drawClock(x *xgbutil.XUtil, p *xwindow.Window) {
 		panic(err)
 	}
 
-	err = win.CreateChecked(p.Id, 0, 0, 1, 1, xproto.CwBackPixel, 0x000000)
+	err = win.CreateChecked(p.Id, 0, 0, 1, 1, xproto.CwBackPixel, 0xffffff)
 	if err != nil {
 		panic(err)
 	}
@@ -111,16 +150,18 @@ func drawClock(x *xgbutil.XUtil, p *xwindow.Window) {
 }
 
 func renderText(text string) (*bytes.Buffer, error) {
-	surf := cairo.ImageSurfaceCreate(cairo.FormatRGB24, 60, 30)
+	surf := cairo.ImageSurfaceCreate(cairo.FormatARGB32, 60, 30)
+	
 	cr := cairo.Create(surf.Surface)
 
 	cr.SetSourceRGB(0.2, 0.2, 0.2)
-	cr.Paint()
+	// cr.SetSourceRGB(0.9, 0.9, 0.9)
+	cr.PaintWithAlpha(1.0)
 
 	cr.SetAntialias(cairo.AntialiasBest)
 
 	cr.SetSourceRGB(1, 1, 1)
-	cr.SelectFontFace("SourceCodePro-Medium", cairo.FontSlantNormal, cairo.FontWeightBold)
+	cr.SelectFontFace("SourceCodePro-Bold", cairo.FontSlantNormal, cairo.FontWeightNormal)
 	cr.SetFontSize(14)
 	cr.MoveTo(60/10, 30/2)
 	cr.ShowText(text)

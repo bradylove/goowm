@@ -31,17 +31,22 @@ func New(conf *config.Config) (*WindowManager, error) {
 		return nil, err
 	}
 
-	wm := &WindowManager{X: x}
+	wm := &WindowManager{
+		X: x,
+		Workspaces: make([]*Workspace, 0, len(conf.Workspaces)),
+	}
 
+	names := make([]string, 0, len(conf.Workspaces))
 	for _, wc := range conf.Workspaces {
 		wm.Workspaces = append(wm.Workspaces, NewWorkspace(x, wc))
+		names = append(names, wc.Name)
 	}
 
 	fmt.Println(len(wm.Workspaces))
 	wm.activateWorkspace(0)
 
 	root := xwindow.New(x, x.RootWin())
-	panel, err := panel.New(x)
+	panel, err := panel.New(x, names)
 	if err != nil {
 		panic(err)
 	}

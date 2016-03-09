@@ -37,7 +37,7 @@ func New(conf *config.Config) (*WindowManager, error) {
 	}
 
 	fmt.Println(len(wm.Workspaces))
-	wm.ActivateWorkspace(0)
+	wm.activateWorkspace(0)
 
 	root := xwindow.New(x, x.RootWin())
 
@@ -68,7 +68,7 @@ func New(conf *config.Config) (*WindowManager, error) {
 		panic(err)
 	}
 
-	err = keybind.KeyPressFun(onShowModeLine).Connect(x, x.RootWin(), "Mod4-e", true)
+	err = keybind.KeyPressFun(onExecLauncher).Connect(x, x.RootWin(), "Mod4-e", true)
 	if err != nil {
 		panic(err)
 	}
@@ -76,50 +76,56 @@ func New(conf *config.Config) (*WindowManager, error) {
 	return wm, nil
 }
 
-func (wm *WindowManager) ActiveWorkspace() *Workspace {
+func (wm *WindowManager) activeWorkspace() *Workspace {
 	return wm.Workspaces[wm.ActiveWorkspaceIndex]
 }
 
-// ActivateWorkspace will deactivate the current active workspace if there is one
-// then it will activate the workspace with the given index.
-func (wm *WindowManager) ActivateWorkspace(index int) {
-	wm.Workspaces[wm.ActiveWorkspaceIndex].Unmap()
-	wm.Workspaces[index].Map()
+func (wm *WindowManager) activateWorkspace(index int) {
+	wm.Workspaces[wm.ActiveWorkspaceIndex].Deactivate()
+	wm.Workspaces[index].Activate()
 	wm.ActiveWorkspaceIndex = index
 }
 
-func (wm *WindowManager) ActivateNextWorkspace() {
-	var index int
-	if wm.ActiveWorkspaceIndex != len(wm.Workspaces)-1 {
-		index = wm.ActiveWorkspaceIndex + 1
-	}
-
-	wm.ActivateWorkspace(index)
+func (wm *WindowManager) activateNextWorkspace() {
+	wm.activateWorkspace(wm.nextWorkspaceIndex())
 }
 
-func (wm *WindowManager) ActivatePreviousWorkspace() {
+func (wm *WindowManager) activatePreviousWorkspace() {
+	wm.activateWorkspace(wm.previousWorkspaceIndex())
+}
+
+func (wm *WindowManager) previousWorkspaceIndex() int {
 	index := wm.ActiveWorkspaceIndex - 1
 
 	if index == -1 {
 		index = len(wm.Workspaces) - 1
 	}
 
-	wm.ActivateWorkspace(index)
+	return index
+}
+
+func (wm *WindowManager) nextWorkspaceIndex() int {
+	var index int
+	if wm.ActiveWorkspaceIndex != len(wm.Workspaces)-1 {
+		index = wm.ActiveWorkspaceIndex + 1
+	}
+
+	return index
 }
 
 func (wm *WindowManager) onActivateNextWorkspace(x *xgbutil.XUtil, e xevent.KeyPressEvent) {
-	wm.ActivateNextWorkspace()
+	wm.activateNextWorkspace()
 }
 
 func (wm *WindowManager) onActivatePreviousWorkspace(x *xgbutil.XUtil, e xevent.KeyPressEvent) {
-	wm.ActivatePreviousWorkspace()
+	wm.activatePreviousWorkspace()
 }
 
 func (wm *WindowManager) Run() {
 	xevent.Main(wm.X)
 }
 
-func onShowModeLine(x *xgbutil.XUtil, e xevent.KeyPressEvent) {
+func onExecLauncher(x *xgbutil.XUtil, e xevent.KeyPressEvent) {
 	cmd := exec.Command("dmenu_run", "-b")
 
 	env := os.Environ()
@@ -148,7 +154,7 @@ func (wm *WindowManager) onMapRequest(x *xgbutil.XUtil, e xevent.MapRequestEvent
 		panic(err)
 	}
 
-	err = pw.CreateChecked(wm.ActiveWorkspace().WindowId(), cg.X(), cg.Y(),
+	err = pw.CreateChecked(wm.activeWorkspace().WindowId(), cg.X(), cg.Y(),
 		cg.Width()+12, cg.Height()+12, xproto.CwBackPixel, 0x000000)
 	if err != nil {
 		panic(err)

@@ -3,13 +3,12 @@ package windowmanager
 import (
 	"fmt"
 	"goowm/config"
-	"image"
+	"goowm/render"
 	"io/ioutil"
 
 	"github.com/BurntSushi/freetype-go/freetype/truetype"
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/BurntSushi/xgbutil"
-	"github.com/BurntSushi/xgbutil/xgraphics"
 	"github.com/BurntSushi/xgbutil/xwindow"
 )
 
@@ -45,11 +44,11 @@ func NewWorkspace(x *xgbutil.XUtil, conf *config.WorkspaceConfig) *Workspace {
 	return &workspace
 }
 
-func (ws *Workspace) Unmap() {
+func (ws *Workspace) Deactivate() {
 	ws.window.Unmap()
 }
 
-func (ws *Workspace) Map() {
+func (ws *Workspace) Activate() {
 	ws.window.Map()
 }
 
@@ -57,63 +56,25 @@ func (ws *Workspace) WindowId() xproto.Window {
 	return ws.window.Id
 }
 
-// TODO: Move everything below this line somewhere else, it doesn't belong here
-type Color struct {
-	R uint32
-	G uint32
-	B uint32
-	A uint32
-}
-
-func (c Color) RGBA() (r, g, b, a uint32) {
-	return c.R, c.G, c.B, c.A
-}
-
 func (ws *Workspace) renderName(x *xgbutil.XUtil) error {
-	win, err := xwindow.Generate(x)
-	if err != nil {
-		panic(fmt.Errorf("Failed to generate workspace: %s", err))
-	}
+	size := 28.0
 
-	err = win.CreateChecked(ws.window.Id, 0, 0, 1, 1, xproto.CwBackPixel, 0x000000)
+	fd, err := ioutil.ReadFile("/usr/share/fonts/TTF/SourceCodePro-Medium.ttf")
 	if err != nil {
-		panic(fmt.Errorf("Failed to create workspace: %s", err))
-	}
-
-	fd, err := ioutil.ReadFile("resources/DejaVuSans.ttf")
-	if err != nil {
-		return err
+		panic(err)
 	}
 
 	font, err := truetype.Parse(fd)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
-	size := 28.0
-
-	ew, eh := xgraphics.Extents(font, size, ws.name)
-	img := xgraphics.New(x, image.Rect(0, 0, ew, eh))
-	xgraphics.BlendBgColor(img, Color{R: 255, G: 255, B: 255})
-
-	_, _, err = img.Text(0, 0, Color{R: 100, G: 100, B: 100}, size, font, ws.name)
-	if err != nil {
-		return err
-	}
-
+	w, h := render.Extents(ws.name, font, size)
 	wg, err := ws.window.Geometry()
 	if err != nil {
 		return err
 	}
 
-	win.MoveResize(wg.Width()-ew-5, wg.Height()-eh-5, ew, eh)
-
-	img.XSurfaceSet(win.Id)
-	img.XDraw()
-	img.XPaint(win.Id)
-	img.Destroy()
-
-	win.Map()
-
+	render.Text(x, ws.WindowId(), ws.name, font, size, wg.Width()-w-5, wg.Height()-h-5)
 	return nil
 }

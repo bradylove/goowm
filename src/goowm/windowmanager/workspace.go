@@ -27,13 +27,13 @@ func NewWorkspace(x *xgbutil.XUtil, conf *config.WorkspaceConfig) *Workspace {
 		panic(fmt.Errorf("Failed to generate workspace: %s", err))
 	}
 
-	err = ws.CreateChecked(x.RootWin(), 0, 0, rg.Width(), rg.Height(),
-		xproto.CwBackPixel, 0xffffff)
+	err = ws.CreateChecked(x.RootWin(), 0, 20, rg.Width(), rg.Height()-20,
+		xproto.CwBackPixel, 0x666666)
 	if err != nil {
 		panic(fmt.Errorf("Failed to create workspace: %s", err))
 	}
 
-	err = xproto.ReparentWindowChecked(x.Conn(), ws.Id, x.RootWin(), 0, 0).Check()
+	err = xproto.ReparentWindowChecked(x.Conn(), ws.Id, x.RootWin(), 0, 20).Check()
 	if err != nil {
 		panic(err)
 	}

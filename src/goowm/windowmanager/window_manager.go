@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"goowm/config"
 	"goowm/gwindow"
+	"goowm/panel"
 	"os"
 	"os/exec"
 
@@ -40,6 +41,11 @@ func New(conf *config.Config) (*WindowManager, error) {
 	wm.activateWorkspace(0)
 
 	root := xwindow.New(x, x.RootWin())
+	panel, err := panel.New(x)
+	if err != nil {
+		panic(err)
+	}
+	panel.Run()
 
 	evMasks := xproto.EventMaskPropertyChange |
 		xproto.EventMaskFocusChange |

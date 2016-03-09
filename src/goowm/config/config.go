@@ -14,6 +14,8 @@ type Config struct {
 	KeyBindingPreviousWorkspace string
 	KeyBindingExecLauncher      string
 
+	PanelHeight int
+
 	ThemeBorderColor int
 	ThemeBorderWidth int
 }

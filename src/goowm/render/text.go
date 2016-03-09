@@ -23,7 +23,7 @@ func Text(x *xgbutil.XUtil, parentId xproto.Window, text string, font *truetype.
 		return fmt.Errorf("Failed to generate text window: %s", err)
 	}
 
-	err = win.CreateChecked(parentId, 0, 0, 1, 1, xproto.CwBackPixel, 0x000000)
+	err = win.CreateChecked(parentId, 0, 0, 1, 1, xproto.CwBackPixel, 0x666666)
 	if err != nil {
 		return fmt.Errorf("Failed to create text window: %s", err)
 	}

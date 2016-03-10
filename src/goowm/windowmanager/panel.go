@@ -18,9 +18,10 @@ type Panel struct {
 	x      *xgbutil.XUtil
 	window *xwindow.Window
 	conf   *config.Config
+	wm     *WindowManager
 }
 
-func NewPanel(x *xgbutil.XUtil, names []string) (*Panel, error) {
+func NewPanel(x *xgbutil.XUtil, wm *WindowManager) (*Panel, error) {
 	log.Println("Creating new panel")
 
 	rg := xwindow.RootGeometry(x)
@@ -37,12 +38,12 @@ func NewPanel(x *xgbutil.XUtil, names []string) (*Panel, error) {
 	runClock(x, win)
 
 	var xPos, yPos int
-	for _, n := range names {
+	for _, n := range wm.WorkspaceManager.Names() {
 		width := renderWorkspace(x, win, n, xPos, yPos)
 		xPos += width
 	}
 
-	return &Panel{x: x, window: win}, nil
+	return &Panel{x: x, window: win, wm: wm}, nil
 }
 
 func (p *Panel) Run() {

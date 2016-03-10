@@ -40,6 +40,10 @@ func NewWorkspace(x *xgbutil.XUtil, conf *config.WorkspaceConfig) *Workspace {
 	return &workspace
 }
 
+func (ws *Workspace) Name() string {
+	return ws.name
+}
+
 func (ws *Workspace) Deactivate() {
 	ws.window.Unmap()
 }

@@ -1,7 +1,6 @@
 package windowmanager
 
 import (
-	"fmt"
 	"goowm/config"
 	"os"
 	"os/exec"
@@ -15,11 +14,10 @@ import (
 )
 
 type WindowManager struct {
-	X                    *xgbutil.XUtil
-	Root                 *xwindow.Window
-	conf                 *config.Config
-	Workspaces           []*Workspace
-	ActiveWorkspaceIndex int
+	X                *xgbutil.XUtil
+	Root             *xwindow.Window
+	conf             *config.Config
+	WorkspaceManager *WorkspaceManager
 }
 
 // New sets up a and returns a new *WindowManager
@@ -30,21 +28,15 @@ func New(conf *config.Config) (*WindowManager, error) {
 	}
 
 	wm := &WindowManager{
-		X: x,
-		Workspaces: make([]*Workspace, 0, len(conf.Workspaces)),
+		X:                x,
+		WorkspaceManager: NewWorkspaceManager(len(conf.Workspaces)),
 	}
 
-	names := make([]string, 0, len(conf.Workspaces))
-	for _, wc := range conf.Workspaces {
-		wm.Workspaces = append(wm.Workspaces, NewWorkspace(x, wc))
-		names = append(names, wc.Name)
-	}
-
-	fmt.Println(len(wm.Workspaces))
-	wm.activateWorkspace(0)
+	wm.WorkspaceManager.Add(x, conf.Workspaces...)
+	wm.WorkspaceManager.Activate(0)
 
 	root := xwindow.New(x, x.RootWin())
-	panel, err := NewPanel(x, names)
+	panel, err := NewPanel(x, wm)
 	if err != nil {
 		panic(err)
 	}
@@ -65,6 +57,8 @@ func New(conf *config.Config) (*WindowManager, error) {
 	keybind.Initialize(x)
 
 	xevent.MapRequestFun(wm.onMapRequest).Connect(x, x.RootWin())
+	xevent.ConfigureRequestFun(wm.onConfigureRequest).Connect(x, x.RootWin())
+
 	err = keybind.KeyPressFun(wm.onActivateNextWorkspace).Connect(x, x.RootWin(),
 		conf.KeyBindingNextWorkspace, true)
 	if err != nil {
@@ -86,40 +80,19 @@ func New(conf *config.Config) (*WindowManager, error) {
 }
 
 func (wm *WindowManager) activeWorkspace() *Workspace {
-	return wm.Workspaces[wm.ActiveWorkspaceIndex]
+	return wm.WorkspaceManager.workspaces[wm.WorkspaceManager.activeIndex]
 }
 
-func (wm *WindowManager) activateWorkspace(index int) {
-	wm.Workspaces[wm.ActiveWorkspaceIndex].Deactivate()
-	wm.Workspaces[index].Activate()
-	wm.ActiveWorkspaceIndex = index
-}
+// func (wm *WindowManager) activateWorkspace(index int) {
+// 	wm.WorkspaceManager.Activate(index)
+// }
 
 func (wm *WindowManager) activateNextWorkspace() {
-	wm.activateWorkspace(wm.nextWorkspaceIndex())
+	wm.WorkspaceManager.Activate(wm.WorkspaceManager.NextIndex())
 }
 
 func (wm *WindowManager) activatePreviousWorkspace() {
-	wm.activateWorkspace(wm.previousWorkspaceIndex())
-}
-
-func (wm *WindowManager) previousWorkspaceIndex() int {
-	index := wm.ActiveWorkspaceIndex - 1
-
-	if index == -1 {
-		index = len(wm.Workspaces) - 1
-	}
-
-	return index
-}
-
-func (wm *WindowManager) nextWorkspaceIndex() int {
-	var index int
-	if wm.ActiveWorkspaceIndex != len(wm.Workspaces)-1 {
-		index = wm.ActiveWorkspaceIndex + 1
-	}
-
-	return index
+	wm.WorkspaceManager.Activate(wm.WorkspaceManager.PreviousIndex())
 }
 
 func (wm *WindowManager) onActivateNextWorkspace(x *xgbutil.XUtil, e xevent.KeyPressEvent) {
@@ -178,4 +151,9 @@ func (wm *WindowManager) onMapRequest(x *xgbutil.XUtil, e xevent.MapRequestEvent
 	cw.Map()
 
 	ewmh.ActiveWindowSet(x, cw.Id)
+}
+
+func (wm *WindowManager) onConfigureRequest(x *xgbutil.XUtil, ev xevent.ConfigureRequestEvent) {
+	xwindow.New(x, ev.Window).Configure(int(ev.ValueMask), int(ev.X), int(ev.Y),
+		int(ev.Width), int(ev.Height), ev.Sibling, ev.StackMode)
 }

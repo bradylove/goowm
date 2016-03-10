@@ -3,8 +3,6 @@ package windowmanager
 import (
 	"fmt"
 	"goowm/config"
-	"goowm/gwindow"
-	"goowm/panel"
 	"os"
 	"os/exec"
 
@@ -46,7 +44,7 @@ func New(conf *config.Config) (*WindowManager, error) {
 	wm.activateWorkspace(0)
 
 	root := xwindow.New(x, x.RootWin())
-	panel, err := panel.New(x, names)
+	panel, err := NewPanel(x, names)
 	if err != nil {
 		panic(err)
 	}
@@ -154,7 +152,7 @@ func (wm *WindowManager) onMapRequest(x *xgbutil.XUtil, e xevent.MapRequestEvent
 	x.Grab()
 	defer x.Ungrab()
 
-	cw := gwindow.New(x, e.Window)
+	cw := NewWindow(x, e.Window)
 	cg, err := cw.Geometry()
 	if err != nil {
 		panic(err)

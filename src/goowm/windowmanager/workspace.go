@@ -3,10 +3,7 @@ package windowmanager
 import (
 	"fmt"
 	"goowm/config"
-	"goowm/render"
-	"io/ioutil"
 
-	"github.com/BurntSushi/freetype-go/freetype/truetype"
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/BurntSushi/xgbutil"
 	"github.com/BurntSushi/xgbutil/xwindow"

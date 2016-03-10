@@ -1,4 +1,4 @@
-package panel
+package windowmanager
 
 import (
 	"bytes"
@@ -22,7 +22,7 @@ type Panel struct {
 	conf   *config.Config
 }
 
-func New(x *xgbutil.XUtil, names []string) (*Panel, error) {
+func NewPanel(x *xgbutil.XUtil, names []string) (*Panel, error) {
 	log.Println("Creating new panel")
 
 	rg := xwindow.RootGeometry(x)

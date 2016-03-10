@@ -1,4 +1,4 @@
-package gwindow
+package windowmanager
 
 import (
 	"github.com/BurntSushi/xgb/xproto"
@@ -12,7 +12,7 @@ type Window struct {
 }
 
 // New retreives the xwindow from X and returns a new instance of *Window
-func New(x *xgbutil.XUtil, id xproto.Window) *Window {
+func NewWindow(x *xgbutil.XUtil, id xproto.Window) *Window {
 	xwin := xwindow.New(x, id)
 
 	return &Window{

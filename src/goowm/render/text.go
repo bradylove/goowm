@@ -1,52 +1,36 @@
 package render
 
 import (
-	"fmt"
-	"image"
+	"bytes"
 
 	"github.com/BurntSushi/freetype-go/freetype/truetype"
-	"github.com/BurntSushi/xgb/xproto"
-	"github.com/BurntSushi/xgbutil"
 	"github.com/BurntSushi/xgbutil/xgraphics"
-	"github.com/BurntSushi/xgbutil/xwindow"
+	"github.com/martine/gocairo/cairo"
 )
 
 func Extents(text string, font *truetype.Font, size float64) (int, int) {
 	return xgraphics.Extents(font, size, text)
 }
 
-// Redo this using cairo
-func Text(x *xgbutil.XUtil, parentId xproto.Window, text string, font *truetype.Font,
-	fontSize float64, xPos, yPos int) error {
+func Text(text, font string, color Color, size float64, width, height int) ([]byte, error) {
+	surf := cairo.ImageSurfaceCreate(cairo.FormatARGB32, width, height)
 
-	win, err := xwindow.Generate(x)
-	if err != nil {
-		return fmt.Errorf("Failed to generate text window: %s", err)
+	cr := cairo.Create(surf.Surface)
+
+	fr, fg, fb := color.ToFloat64s()
+	cr.SetSourceRGB(0.2, 0.2, 0.2)
+	cr.PaintWithAlpha(1.0)
+	cr.SetAntialias(cairo.AntialiasBest)
+	cr.SetSourceRGB(fr, fg, fb)
+	cr.SelectFontFace(font, cairo.FontSlantNormal, cairo.FontWeightNormal)
+	cr.SetFontSize(size)
+	cr.MoveTo(float64(width)/10, float64(height)/2)
+	cr.ShowText(text)
+
+	buf := bytes.NewBuffer(nil)
+	if err := surf.WriteToPNG(buf); err != nil {
+		return nil, err
 	}
 
-	err = win.CreateChecked(parentId, 0, 0, 1, 1, xproto.CwBackPixel, 0x666666)
-	if err != nil {
-		return fmt.Errorf("Failed to create text window: %s", err)
-	}
-
-	ew, eh := Extents(text, font, fontSize)
-
-	img := xgraphics.New(x, image.Rect(0, 0, ew, eh))
-	xgraphics.BlendBgColor(img, Color{R: 255, G: 255, B: 255})
-
-	_, _, err = img.Text(0, 0, Color{R: 100, G: 100, B: 100}, fontSize, font, text)
-	if err != nil {
-		return err
-	}
-
-	win.MoveResize(xPos, yPos, ew, eh)
-
-	img.XSurfaceSet(win.Id)
-	img.XDraw()
-	img.XPaint(win.Id)
-	img.Destroy()
-
-	win.Map()
-
-	return nil
+	return buf.Bytes(), nil
 }

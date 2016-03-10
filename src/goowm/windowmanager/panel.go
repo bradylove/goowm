@@ -1,7 +1,6 @@
 package windowmanager
 
 import (
-	"bytes"
 	"goowm/config"
 	"goowm/render"
 	"io/ioutil"
@@ -13,7 +12,6 @@ import (
 	"github.com/BurntSushi/xgbutil"
 	"github.com/BurntSushi/xgbutil/xgraphics"
 	"github.com/BurntSushi/xgbutil/xwindow"
-	"github.com/martine/gocairo/cairo"
 )
 
 type Panel struct {
@@ -52,13 +50,13 @@ func (p *Panel) Run() {
 }
 
 func renderWorkspace(x *xgbutil.XUtil, p *xwindow.Window, n string, xPos, yPos int) int {
-	buf, err := renderText(n)
+	tc := render.NewColor(230, 230, 230)
+	textImg, err := render.Text(n, "SourceCodePro", tc, 14.0, 60, 30)
 	if err != nil {
 		panic(err)
 	}
 
-	// render.Text(x, p.Id, currentTime, font, size, wg.Width()-w-3, 0)
-	img, err := xgraphics.NewBytes(x, buf.Bytes())
+	img, err := xgraphics.NewBytes(x, textImg)
 	if err != nil {
 		panic(err)
 	}
@@ -118,13 +116,13 @@ func drawClock(x *xgbutil.XUtil, p *xwindow.Window) {
 		panic(err)
 	}
 
-	buf, err := renderText(currentTime)
+	tc := render.NewColor(230, 230, 230)
+	textImg, err := render.Text(currentTime, "SourceCodePro", tc, 14.0, 60, 30)
 	if err != nil {
 		panic(err)
 	}
 
-	// render.Text(x, p.Id, currentTime, font, size, wg.Width()-w-3, 0)
-	img, err := xgraphics.NewBytes(x, buf.Bytes())
+	img, err := xgraphics.NewBytes(x, textImg)
 	if err != nil {
 		panic(err)
 	}
@@ -147,29 +145,4 @@ func drawClock(x *xgbutil.XUtil, p *xwindow.Window) {
 	img.Destroy()
 
 	win.Map()
-}
-
-func renderText(text string) (*bytes.Buffer, error) {
-	surf := cairo.ImageSurfaceCreate(cairo.FormatARGB32, 60, 30)
-	
-	cr := cairo.Create(surf.Surface)
-
-	cr.SetSourceRGB(0.2, 0.2, 0.2)
-	// cr.SetSourceRGB(0.9, 0.9, 0.9)
-	cr.PaintWithAlpha(1.0)
-
-	cr.SetAntialias(cairo.AntialiasBest)
-
-	cr.SetSourceRGB(1, 1, 1)
-	cr.SelectFontFace("SourceCodePro-Bold", cairo.FontSlantNormal, cairo.FontWeightNormal)
-	cr.SetFontSize(14)
-	cr.MoveTo(60/10, 30/2)
-	cr.ShowText(text)
-
-	buf := bytes.NewBuffer(nil)
-	if err := surf.WriteToPNG(buf); err != nil {
-		return nil, err
-	}
-
-	return buf, nil
 }

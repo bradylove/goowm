@@ -7,7 +7,6 @@ import (
 
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/BurntSushi/xgbutil"
-	"github.com/BurntSushi/xgbutil/ewmh"
 	"github.com/BurntSushi/xgbutil/keybind"
 	"github.com/BurntSushi/xgbutil/xevent"
 	"github.com/BurntSushi/xgbutil/xwindow"
@@ -125,32 +124,8 @@ func (wm *WindowManager) onMapRequest(x *xgbutil.XUtil, e xevent.MapRequestEvent
 	x.Grab()
 	defer x.Ungrab()
 
-	cw := NewWindow(x, e.Window)
-	cg, err := cw.Geometry()
-	if err != nil {
-		panic(err)
-	}
-
-	pw, err := xwindow.Generate(x)
-	if err != nil {
-		panic(err)
-	}
-
-	err = pw.CreateChecked(wm.activeWorkspace().WindowId(), cg.X(), cg.Y(),
-		cg.Width()+12, cg.Height()+12, xproto.CwBackPixel, 0x000000)
-	if err != nil {
-		panic(err)
-	}
-
-	err = xproto.ReparentWindowChecked(x.Conn(), cw.Id, pw.Id, 5, 5).Check()
-	if err != nil {
-		panic(err)
-	}
-
-	pw.Map()
-	cw.Map()
-
-	ewmh.ActiveWindowSet(x, cw.Id)
+	w := NewWindow(x, wm.activeWorkspace().WindowId(), e.Window)
+	w.Draw()
 }
 
 func (wm *WindowManager) onConfigureRequest(x *xgbutil.XUtil, ev xevent.ConfigureRequestEvent) {

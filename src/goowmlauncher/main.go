@@ -1,0 +1,146 @@
+package main
+
+import (
+	"fmt"
+	"goowm/render"
+	"time"
+	"unicode"
+	"unicode/utf8"
+
+	"github.com/BurntSushi/xgb/xproto"
+	"github.com/BurntSushi/xgbutil"
+	"github.com/BurntSushi/xgbutil/ewmh"
+	"github.com/BurntSushi/xgbutil/keybind"
+	"github.com/BurntSushi/xgbutil/motif"
+	"github.com/BurntSushi/xgbutil/xevent"
+	"github.com/BurntSushi/xgbutil/xgraphics"
+	"github.com/BurntSushi/xgbutil/xwindow"
+)
+
+const (
+	LauncherHeight          = 40
+	LauncherWidth           = 300
+	LauncherBackgroundColor = 0xffffff
+	LauncherBorderColor     = 0x333333
+)
+
+func main() {
+	x, err := xgbutil.NewConnDisplay(":0")
+	if err != nil {
+		panic(err)
+	}
+
+	keybind.Initialize(x)
+
+	rg := xwindow.RootGeometry(x)
+
+	xPos := (rg.Width() / 2) - (LauncherWidth / 2)
+	yPos := (rg.Height() / 2) - (LauncherHeight / 2)
+
+	parent, err := xwindow.Generate(x)
+	if err != nil {
+		panic(err)
+	}
+
+	input, err := xwindow.Generate(x)
+	if err != nil {
+		panic(err)
+	}
+
+	parent.CreateChecked(x.RootWin(), xPos, yPos, LauncherWidth, LauncherHeight,
+		xproto.CwBackPixel, LauncherBorderColor)
+
+	input.CreateChecked(parent.Id, 3, 3, LauncherWidth-6, LauncherHeight-6,
+		xproto.CwBackPixel, LauncherBackgroundColor)
+
+	motif.WmHintsSet(x, parent.Id, &motif.Hints{
+		Flags:      motif.HintDecorations,
+		Decoration: motif.DecorationNone,
+	})
+
+	if err := input.Listen(xproto.EventMaskKeyPress); err != nil {
+		panic(err)
+	}
+
+	tc := render.NewColor(0, 0, 0)
+	var drawInputedChars = func(txt string) {
+		imgWidth := len(txt) * 15
+
+		imgData, err := render.Text(txt, "SourceCodePro", tc, 18.0, imgWidth, LauncherHeight-10)
+		if err != nil {
+			panic(err)
+		}
+
+		img, err := xgraphics.NewBytes(x, imgData)
+		if err != nil {
+			panic(err)
+		}
+
+		win, err := xwindow.Generate(x)
+		if err != nil {
+			panic(err)
+		}
+
+		if err := win.CreateChecked(input.Id, 0, 0, 1, 1, xproto.CwBackPixel, 0x333333); err != nil {
+			panic(err)
+		}
+
+		win.MoveResize(5, 5, imgWidth, LauncherHeight-10)
+
+		img.XSurfaceSet(win.Id)
+		img.XDraw()
+		img.XPaint(win.Id)
+		img.Destroy()
+
+		win.Map()
+		fmt.Println("You should see text...")
+	}
+
+	var txt string
+	xevent.KeyPressFun(
+		func(x *xgbutil.XUtil, e xevent.KeyPressEvent) {
+			if keybind.KeyMatch(x, "Escape", e.State, e.Detail) {
+				fmt.Println("Exiting...")
+				xevent.Quit(x)
+				return
+			}
+
+			if keybind.KeyMatch(x, "BackSpace", e.State, e.Detail) && len(txt) > 0 {
+				txt = txt[:len(txt)-1]
+				drawInputedChars(txt)
+				fmt.Println(txt)
+
+				return
+			}
+
+			key := keybind.LookupString(x, e.State, e.Detail)
+			fmt.Println(key)
+
+			if len(key) > 1 {
+				return
+			}
+
+			r, _ := utf8.DecodeRuneInString(key[0:])
+
+			if unicode.IsPrint(r) {
+				txt += key
+				drawInputedChars(txt)
+				fmt.Println(txt)
+			}
+		}).Connect(x, input.Id)
+
+	input.Map()
+	parent.Map()
+
+	if err := ewmh.ActiveWindowReq(x, input.Id); err != nil {
+		panic(err)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	if err := keybind.GrabKeyboard(x, input.Id); err != nil {
+		panic(err)
+	}
+	defer keybind.GrabKeyboard(x, input.Id)
+
+	xevent.Main(x)
+}

@@ -1,7 +1,6 @@
 package windowmanager
 
 import (
-	"fmt"
 	"goowm/broadcaster"
 	"goowm/config"
 	"goowm/render"
@@ -17,10 +16,11 @@ import (
 )
 
 type Panel struct {
-	x      *xgbutil.XUtil
-	window *xwindow.Window
-	conf   *config.Config
-	wm     *WindowManager
+	x          *xgbutil.XUtil
+	window     *xwindow.Window
+	conf       *config.Config
+	wm         *WindowManager
+	workspaces *xwindow.Window
 }
 
 func NewPanel(x *xgbutil.XUtil, wm *WindowManager) (*Panel, error) {
@@ -43,14 +43,30 @@ func NewPanel(x *xgbutil.XUtil, wm *WindowManager) (*Panel, error) {
 	p.drawWorkspaces()
 
 	broadcaster.Listen(broadcaster.EventWorkspaceChanged, func() {
-		fmt.Println("Workspaces Changed")
 		p.drawWorkspaces()
 	})
 
 	return p, nil
 }
 
-func (p *Panel) drawWorkspaces() {
+func (p *Panel) Run() {
+	p.window.Map()
+}
+
+func (p *Panel) drawWorkspaces() error {
+	oldWorkspaces := p.workspaces
+
+	var err error
+	p.workspaces, err = xwindow.Generate(p.x)
+	if err != nil {
+		return err
+	}
+
+	err = p.workspaces.CreateChecked(p.window.Id, 0, 0, 180, 20, xproto.CwBackPixel, 0x333333)
+	if err != nil {
+		return err
+	}
+
 	var xPos, yPos int
 	for i, w := range p.wm.WorkspaceManager.Workspaces {
 		tc := render.NewColor(230, 230, 230)
@@ -59,16 +75,20 @@ func (p *Panel) drawWorkspaces() {
 			tc = render.NewColor(255, 153, 0)
 		}
 
-		width := renderWorkspace(p.x, p.window, w.Name(), xPos, yPos, tc)
+		width := drawWorkspace(p.x, p.workspaces, w.Name(), xPos, yPos, tc)
 		xPos += width
 	}
+
+	p.workspaces.Map()
+
+	if oldWorkspaces != nil {
+		oldWorkspaces.Destroy()
+	}
+
+	return nil
 }
 
-func (p *Panel) Run() {
-	p.window.Map()
-}
-
-func renderWorkspace(x *xgbutil.XUtil, p *xwindow.Window, n string, xPos, yPos int, tc render.Color) int {
+func drawWorkspace(x *xgbutil.XUtil, p *xwindow.Window, n string, xPos, yPos int, tc render.Color) int {
 	textImg, err := render.Text(n, "SourceCodePro", tc, 14.0, 60, 30)
 	if err != nil {
 		panic(err)

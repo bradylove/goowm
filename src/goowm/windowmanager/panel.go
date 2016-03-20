@@ -1,6 +1,8 @@
 package windowmanager
 
 import (
+	"fmt"
+	"goowm/broadcaster"
 	"goowm/config"
 	"goowm/render"
 	"io/ioutil"
@@ -37,21 +39,36 @@ func NewPanel(x *xgbutil.XUtil, wm *WindowManager) (*Panel, error) {
 
 	runClock(x, win)
 
+	p := &Panel{x: x, window: win, wm: wm}
+	p.drawWorkspaces()
+
+	broadcaster.Listen(broadcaster.EventWorkspaceChanged, func() {
+		fmt.Println("Workspaces Changed")
+		p.drawWorkspaces()
+	})
+
+	return p, nil
+}
+
+func (p *Panel) drawWorkspaces() {
 	var xPos, yPos int
-	for _, n := range wm.WorkspaceManager.Names() {
-		width := renderWorkspace(x, win, n, xPos, yPos)
+	for i, w := range p.wm.WorkspaceManager.Workspaces {
+		tc := render.NewColor(230, 230, 230)
+
+		if i == p.wm.WorkspaceManager.ActiveIndex() {
+			tc = render.NewColor(255, 153, 0)
+		}
+
+		width := renderWorkspace(p.x, p.window, w.Name(), xPos, yPos, tc)
 		xPos += width
 	}
-
-	return &Panel{x: x, window: win, wm: wm}, nil
 }
 
 func (p *Panel) Run() {
 	p.window.Map()
 }
 
-func renderWorkspace(x *xgbutil.XUtil, p *xwindow.Window, n string, xPos, yPos int) int {
-	tc := render.NewColor(230, 230, 230)
+func renderWorkspace(x *xgbutil.XUtil, p *xwindow.Window, n string, xPos, yPos int, tc render.Color) int {
 	textImg, err := render.Text(n, "SourceCodePro", tc, 14.0, 60, 30)
 	if err != nil {
 		panic(err)

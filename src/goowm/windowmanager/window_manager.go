@@ -79,12 +79,8 @@ func New(conf *config.Config) (*WindowManager, error) {
 }
 
 func (wm *WindowManager) activeWorkspace() *Workspace {
-	return wm.WorkspaceManager.workspaces[wm.WorkspaceManager.activeIndex]
+	return wm.WorkspaceManager.Workspaces[wm.WorkspaceManager.ActiveIndex()]
 }
-
-// func (wm *WindowManager) activateWorkspace(index int) {
-// 	wm.WorkspaceManager.Activate(index)
-// }
 
 func (wm *WindowManager) activateNextWorkspace() {
 	wm.WorkspaceManager.Activate(wm.WorkspaceManager.NextIndex())

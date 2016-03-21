@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"goowm/render"
+	"os/exec"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -63,36 +64,44 @@ func main() {
 	}
 
 	tc := render.NewColor(0, 0, 0)
+	bc := render.NewColor(255, 255, 255)
+	var textWin *xwindow.Window
 	var drawInputedChars = func(txt string) {
-		imgWidth := len(txt) * 15
+		oldWin := textWin
 
-		imgData, err := render.Text(txt, "SourceCodePro", tc, 18.0, imgWidth, LauncherHeight-10)
+		imgData, w, h, err := BuildTextImg(txt, "SourceCodePro", 18.0, tc, bc)
 		if err != nil {
 			panic(err)
 		}
+
+		fmt.Println("Width: ", w)
+		fmt.Println("Height:", h)
 
 		img, err := xgraphics.NewBytes(x, imgData)
 		if err != nil {
 			panic(err)
 		}
 
-		win, err := xwindow.Generate(x)
+		textWin, err = xwindow.Generate(x)
 		if err != nil {
 			panic(err)
 		}
 
-		if err := win.CreateChecked(input.Id, 0, 0, 1, 1, xproto.CwBackPixel, 0x333333); err != nil {
+		if err := textWin.CreateChecked(input.Id, 0, 0, 1, 1, xproto.CwBackPixel, 0x333333); err != nil {
 			panic(err)
 		}
 
-		win.MoveResize(5, 5, imgWidth, LauncherHeight-10)
+		textWin.MoveResize(5, 7, w, 30)
 
-		img.XSurfaceSet(win.Id)
+		img.XSurfaceSet(textWin.Id)
 		img.XDraw()
-		img.XPaint(win.Id)
+		img.XPaint(textWin.Id)
 		img.Destroy()
 
-		win.Map()
+		textWin.Map()
+		if oldWin != nil {
+			oldWin.Destroy()
+		}
 		fmt.Println("You should see text...")
 	}
 
@@ -111,6 +120,12 @@ func main() {
 				fmt.Println(txt)
 
 				return
+			}
+
+			if keybind.KeyMatch(x, "Return", e.State, e.Detail) && len(txt) > 0 {
+				launchExecutable(txt)
+				fmt.Println("Exiting...")
+				xevent.Quit(x)
 			}
 
 			key := keybind.LookupString(x, e.State, e.Detail)
@@ -143,4 +158,17 @@ func main() {
 	defer keybind.GrabKeyboard(x, input.Id)
 
 	xevent.Main(x)
+}
+
+func launchExecutable(name string) {
+	path, err := exec.LookPath(name)
+	if err != nil {
+		panic(err)
+	}
+
+	cmd := exec.Command(path)
+	err = cmd.Start()
+	if err != nil {
+		panic(err)
+	}
 }
